@@ -20,7 +20,7 @@
 
 ---
 
-Drop-in replacement for the [Muon optimizer](https://github.com/KellerJordan/Muon) that accelerates the Newton-Schulz orthogonalization by exploiting **matrix symmetry** with custom CuTe SYRK kernels. Achieves **1.5x faster** NS iteration and **2.5x faster optimizer step** with **identical training dynamics**.
+Drop-in replacement for the [Muon optimizer](https://github.com/KellerJordan/Muon) that accelerates the Newton-Schulz orthogonalization by exploiting **matrix symmetry** with custom CuTe SYRK kernels. Achieves **stable 1.5x speedup** vs `torch.compile` on dedicated A800 with **identical training dynamics**.
 
 <p align="center">
   <img src="benchmarks/figures/optimizer_step_time.png" width="600"/>
@@ -68,6 +68,25 @@ X_ortho = fused_newton_schulz(G, steps=5)
 
 ## 📊 Benchmarks
 
+All benchmarks measured on a **dedicated NVIDIA A800-SXM4-80GB** (no other processes), BF16, with 500-iteration warmup per method to ensure stable GPU frequency.
+
+### Newton-Schulz Step Speedup (5 iterations, vs `torch.compile`)
+
+Baseline is `@torch.compile`'d vanilla NS — **steady-state** comparison after compilation warmup:
+
+| Shape (m, n) | `torch.compile` (us) | Fused SYRK (us) | Speedup |
+|:---:|:---:|:---:|:---:|
+| (896, 1152) | 465 | 269 | **1.73x** |
+| (896, 896) | 478 | 232 | **2.05x** |
+| (2048, 2560) | 2114 | 1403 | **1.51x** |
+| (2048, 2048) | 1965 | 1305 | **1.51x** |
+| (2560, 4096) | 3443 | 2349 | **1.47x** |
+| (3584, 4608) | 7687 | 5228 | **1.47x** |
+| (3584, 3584) | 6587 | 4430 | **1.49x** |
+| (4096, 4096) | 9351 | 6294 | **1.49x** |
+
+> Consistent **~1.5x** speedup across all tested shapes vs `torch.compile` (post-warmup steady state). Small shapes (m ≤ 896) benefit more (**1.7–2.0x**) due to proportionally larger overhead eliminated by kernel fusion.
+
 ### CIFAR-10 Training: FusedMuon vs VanillaMuon vs AdamW
 
 <table>
@@ -81,21 +100,7 @@ X_ortho = fused_newton_schulz(G, steps=5)
 </tr>
 </table>
 
-> FusedMuon and VanillaMuon produce **identical training curves** (loss & accuracy overlap), confirming numerical equivalence. GPU-side measurement (CUDA Event) confirms **2.5x faster optimizer step** and **1.42x faster training iteration**.
-
-### Newton-Schulz Step Speedup (5 iterations, vs `torch.compile`)
-
-Tested on NVIDIA A800-SXM4-80GB, BF16. Baseline is `@torch.compile`'d vanilla NS (**after** compilation warmup — steady-state comparison):
-
-| Shape (m, n) | `torch.compile` (us) | Fused SYRK (us) | Speedup |
-|:---:|:---:|:---:|:---:|
-| (896, 1152) | 537 | 333 | **1.61x** |
-| (896, 896) | 523 | 291 | **1.80x** |
-| (2048, 2560) | 2147 | 1415 | **1.52x** |
-| (2048, 2048) | 1995 | 1315 | **1.52x** |
-| (2560, 4096) | 3503 | 2348 | **1.49x** |
-| (3584, 4608) | 7862 | 5229 | **1.50x** |
-| (4096, 4096) | 9478 | 6257 | **1.51x** |
+> FusedMuon and VanillaMuon produce **identical training curves** (loss & accuracy overlap), confirming numerical equivalence.
 
 ### End-to-End NS Iteration Speedup (Qwen Model Shapes)
 
@@ -107,8 +112,6 @@ Tested on NVIDIA A800-SXM4-80GB, BF16. Baseline is `@torch.compile`'d vanilla NS
 | Qwen 7B | QKV | (3584, 4608) | 1.67x | 1.78x | **1.38x** |
 | Qwen 7B | O | (3584, 3584) | 1.61x | 1.78x | **1.39x** |
 | Standard | — | (4096, 4096) | 1.66x | 1.84x | **1.42x** |
-
-> Consistent **1.5x** speedup across all tested shapes vs `torch.compile` baseline. Kernel-level profiling confirms **1.79x CUDA time reduction** (SYRK saves 50% GEMMs + fused epilogue eliminates elementwise kernels).
 
 ---
 
@@ -176,18 +179,6 @@ from muon_fused import fused_newton_schulz
 X_ortho = fused_newton_schulz(gradient_matrix, steps=5)
 ```
 
-### Pre-allocated Workspace
-
-```python
-from muon_fused.ns_step import workspace_size
-import torch
-
-# For repeated calls with the same shape, pre-allocate workspace to avoid cudaMalloc
-m, n = 4096, 4096
-ws = torch.empty(workspace_size(m, n), dtype=torch.uint8, device="cuda")
-X_ortho = fused_newton_schulz(G, steps=5, workspace=ws)
-```
-
 ---
 
 ## ⚙️ Requirements
@@ -217,25 +208,18 @@ git submodule update --init --recursive
 ## 🧪 Testing
 
 ```bash
-# Run all tests (correctness + optimizer equivalence + performance)
 pytest tests/ -v
-
-# Skip performance benchmarks in CI
-pytest tests/ -v -m "not benchmark"
 ```
 
 ## 📈 Reproduce Benchmarks
 
 ```bash
-# Newton-Schulz step breakdown (per-GEMM timing)
-python benchmarks/bench_ns_step.py
-
-# CIFAR-10 training comparison (FusedMuon vs Muon vs AdamW)
-python benchmarks/train_cifar10.py
-
-# Generate figures
-python benchmarks/plot_results.py
+python benchmarks/bench_ns_step.py      # NS step breakdown
+python benchmarks/train_cifar10.py      # CIFAR-10 training
+python benchmarks/plot_results.py       # Generate figures
 ```
+
+> **Important**: For reliable results, use a dedicated GPU with no other processes. GPU DVFS causes significant measurement variance on shared machines.
 
 ---
 
