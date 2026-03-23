@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+
+# Compiled extensions
+*.so
+*.o
+*.a
+*.dylib
+
+# IDE & tools
+.cache/
+.pytest_cache/
+.vscode/
+.idea/
+
+# Logs (generated at runtime)
+*.log
+benchmarks/logs/
+
+# Dataset (downloaded at runtime, ~170MB)
+benchmarks/data/
+
+# CUTLASS submodule (cloned separately)
+# third_party/cutlass/  # uncomment if using symlink instead of submodule
+third_party/cutlass/

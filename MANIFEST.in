@@ -1,0 +1,2 @@
+recursive-include csrc *.cu *.cuh *.h
+recursive-include third_party/cutlass/include *.h *.hpp *.cuh
