@@ -20,7 +20,7 @@
 
 ---
 
-Drop-in replacement for the [Muon optimizer](https://github.com/KellerJordan/Muon) that accelerates the Newton-Schulz orthogonalization by exploiting **matrix symmetry** with custom CuTe SYRK kernels. Achieves **1.5x faster** NS iteration (vs `torch.compile`) with **identical training dynamics**.
+Drop-in replacement for the [Muon optimizer](https://github.com/KellerJordan/Muon) that accelerates the Newton-Schulz orthogonalization by exploiting **matrix symmetry** with custom CuTe SYRK kernels. Achieves **1.5x faster** NS iteration and **2.5x faster optimizer step** with **identical training dynamics**.
 
 <p align="center">
   <img src="benchmarks/figures/optimizer_step_time.png" width="600"/>
@@ -81,7 +81,7 @@ X_ortho = fused_newton_schulz(G, steps=5)
 </tr>
 </table>
 
-> FusedMuon and VanillaMuon produce **identical training curves** (loss & accuracy overlap), confirming numerical equivalence. FusedMuon optimizer step is **2.1x faster** (3.6s vs 7.6s per epoch), reducing total training time by **31%** (201s vs 293s).
+> FusedMuon and VanillaMuon produce **identical training curves** (loss & accuracy overlap), confirming numerical equivalence. GPU-side measurement (CUDA Event) confirms **2.5x faster optimizer step** and **1.42x faster training iteration**.
 
 ### Newton-Schulz Step Speedup (5 iterations, vs `torch.compile`)
 

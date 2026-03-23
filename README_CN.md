@@ -20,7 +20,7 @@
 
 ---
 
-[Muon 优化器](https://github.com/KellerJordan/Muon) 的即插即用加速方案。通过自定义 CuTe SYRK 内核利用**矩阵对称性**加速 Newton-Schulz 正交化。NS 迭代速度提升 **1.5 倍**（vs `torch.compile`），训练效果**完全一致**。
+[Muon 优化器](https://github.com/KellerJordan/Muon) 的即插即用加速方案。通过自定义 CuTe SYRK 内核利用**矩阵对称性**加速 Newton-Schulz 正交化。NS 迭代速度提升 **1.5 倍**，优化器 step 提升 **2.5 倍**，训练效果**完全一致**。
 
 <p align="center">
   <img src="benchmarks/figures/optimizer_step_time.png" width="600"/>
@@ -81,7 +81,7 @@ X_ortho = fused_newton_schulz(G, steps=5)
 </tr>
 </table>
 
-> FusedMuon 和 VanillaMuon 的训练曲线**完全重合**，确认数值等价性。优化器 step 速度提升 **2.1 倍**（3.6s vs 7.6s/epoch），总训练时间节省 **31%**。
+> FusedMuon 和 VanillaMuon 的训练曲线**完全重合**，确认数值等价性。GPU 侧测量（CUDA Event）确认优化器 step 提升 **2.5 倍**，训练迭代提升 **1.42 倍**。
 
 ### Newton-Schulz 单步加速（5 次迭代）
 
